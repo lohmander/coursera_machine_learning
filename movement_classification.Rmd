@@ -1,0 +1,66 @@
+---
+title: "Movement classification"
+output: html_document
+---
+
+In this project we were tasked to classify different movements using different kinds of tracking data collected from fitness trackers. This data could include values collected by accelerometers and gyroscopes. We use the plain **randomForest** library to train our model.
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(caret)
+library(randomForest)
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Loading and cleaning the data
+
+The provided data did contain a lot of missing values and other irrelevant columns that were irrelevant to our prediction model. This included averages, min- and max values and other non-sensory data.
+
+```{r}
+training <- read.csv('pml-training.csv', header=TRUE, sep=',', na.strings=c('NA', '#DIV/0!', '', ' '))
+subset <- training
+subset <- subset[,-grep("^avg_", names(subset))]
+subset <- subset[,-grep("^min_", names(subset))]
+subset <- subset[,-grep("^max_", names(subset))]
+subset <- subset[,-grep("_window", names(subset))]
+subset <- subset[,-grep("timestamp", names(subset))]
+subset <- subset[,-grep("^user_name", names(subset))]
+subset <- subset[,-grep("^X$", names(subset))]
+subset <- subset[,colSums(is.na(subset)) < nrow(subset) * 0.1]
+```
+
+After cleaning our data we do a simple 75/25 split of the data set, using 75% as training data and the other 25% for validation.
+
+```{r}
+sset <- createDataPartition(y=subset$classe, p=0.75, list=FALSE)
+train <- subset[sset,]
+test <- subset[-sset,]
+```
+
+## Training
+
+To train our model we use a rather plain random forest setup, but with a significantly (1/10) lowered number of trees. This to speed up the processing while still achieving a very high accuracy (>99%).
+
+```{r}
+set.seed(1234)
+fit3 <- randomForest(classe ~ ., data=train, method='rf', ntree=50)
+```
+
+## Validation
+
+To caluclate our accuracy we test our model against the testing data we partitioned earlier (the 25%).
+
+```{r}
+predictions <- predict(fit3, newdata=test)
+confusionMatrix(predictions, test$classe)
+```
+
+Since we achieved this kind of accuracy **(>99%)** without more tweaking I saw no further reason to try any additional methods of optimizing or achieving better results.
+
+## Error rate
+
+Our accuracy found through (cross) validation against the data we set aside initially, and thus were not apart of the training set, tells us that we should achieve an accuracy of **99.31%**. 
+
+
